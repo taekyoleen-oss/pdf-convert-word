@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import type { RetrievedChunk } from '@/lib/rag/retriever';
 import LatexRenderer from './LatexRenderer';
 
-interface Props { jobId?: string; }
+interface Props { jobIds?: string[]; }
 
-export default function FormulaExplorer({ jobId }: Props) {
+export default function FormulaExplorer({ jobIds }: Props) {
   const [chunks, setChunks] = useState<RetrievedChunk[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'formula' | 'example'>('all');
@@ -14,18 +14,18 @@ export default function FormulaExplorer({ jobId }: Props) {
   const [expanded, setExpanded] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!jobId) {
+    if (!jobIds?.length) {
       setChunks([]);
       setLoading(false);
       return;
     }
     setLoading(true);
-    fetch(`/api/study/formulas?jobIds=${jobId}`)
+    fetch(`/api/study/formulas?jobIds=${jobIds.join(',')}`)
       .then((r) => r.json())
       .then((d) => setChunks(d.chunks ?? []))
       .catch(() => setChunks([]))
       .finally(() => setLoading(false));
-  }, [jobId]);
+  }, [jobIds?.join(',')]);
 
   const filtered = chunks.filter((c) => {
     if (filter !== 'all' && c.chunk_type !== filter) return false;
@@ -38,7 +38,7 @@ export default function FormulaExplorer({ jobId }: Props) {
 
   if (loading) return <div className="text-center py-8" style={{ color: 'var(--text-muted)' }}>불러오는 중...</div>;
 
-  if (!jobId) {
+  if (!jobIds?.length) {
     return (
       <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
         <div className="text-4xl mb-3">📐</div>

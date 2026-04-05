@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import LatexRenderer from './LatexRenderer';
 
 interface Message { role: 'user' | 'assistant'; content: string; }
-interface Props { jobId?: string; }
+interface Props { jobIds?: string[]; }
 
 const EXAMPLE_QUESTIONS = [
   '현가율(v)이란 무엇이고 이력(δ)과 어떤 관계인가요?',
@@ -13,7 +13,7 @@ const EXAMPLE_QUESTIONS = [
   '연금현가 $\\ddot{a}_x$를 단계적으로 유도해주세요',
 ];
 
-export default function ChatInterface({ jobId }: Props) {
+export default function ChatInterface({ jobIds }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -38,7 +38,7 @@ export default function ChatInterface({ jobId }: Props) {
       const res = await fetch('/api/study/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updatedMessages, jobIds: jobId ? [jobId] : [] }),
+        body: JSON.stringify({ messages: updatedMessages, jobIds: jobIds ?? [] }),
       });
       if (!res.body) throw new Error('No response body');
 

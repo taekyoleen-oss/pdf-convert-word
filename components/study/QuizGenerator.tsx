@@ -14,9 +14,9 @@ interface Quiz {
   source_page?: number;
 }
 
-interface Props { jobId?: string; }
+interface Props { jobIds?: string[]; }
 
-export default function QuizGenerator({ jobId }: Props) {
+export default function QuizGenerator({ jobIds }: Props) {
   const [topic, setTopic] = useState('');
   const [count, setCount] = useState(3);
   const [difficulty, setDifficulty] = useState<'기초' | '중급' | '심화'>('중급');
@@ -42,7 +42,7 @@ export default function QuizGenerator({ jobId }: Props) {
           count,
           difficulty,
           type: quizType,
-          jobIds: jobId ? [jobId] : undefined,
+          jobIds: jobIds?.length ? jobIds : undefined,
         }),
       });
       const data = await res.json();

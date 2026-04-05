@@ -4,9 +4,9 @@ import { useState } from 'react';
 import ChunkCard from './ChunkCard';
 import type { RetrievedChunk } from '@/lib/rag/retriever';
 
-interface Props { jobId?: string; }
+interface Props { jobIds?: string[]; }
 
-export default function SemanticSearch({ jobId }: Props) {
+export default function SemanticSearch({ jobIds }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<RetrievedChunk[]>([]);
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export default function SemanticSearch({ jobId }: Props) {
       const res = await fetch('/api/study/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query.trim(), topK: 8, jobIds: jobId ? [jobId] : undefined }),
+        body: JSON.stringify({ query: query.trim(), topK: 8, jobIds: jobIds?.length ? jobIds : undefined }),
       });
       const data = await res.json();
       setResults(data.results ?? []);

@@ -15,27 +15,28 @@ const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
   { id: 'quiz',    label: '문제풀기',  icon: '📝', desc: '단원별 퀴즈' },
 ];
 
-/** 파일명 → 챕터 라벨 변환 */
-function resolveChapterLabel(originalName: string): string {
-  const chapterNames: Record<string, string> = {
-    '1': '제1장 이자론',
-    '2': '제2장 생명표',
-    '3': '제3장 생명보험',
-    '4': '제4장 생명연금',
-    '5': '제5장 순보험료',
-    '6': '제6장 책임준비금',
-    '7': '제7장 다중탈퇴',
-    '8': '제8장 연금계리',
-  };
-  // 파일명에서 숫자+장 패턴 추출: "1장", "2장" 등
+/** 파일명 → 챕터 키 (같은 장은 같은 키로 묶임) */
+function resolveChapterKey(originalName: string): string {
   const match = originalName.match(/[_\s\-]?(\d+)[장章]/);
-  if (match) return chapterNames[match[1]] ?? `제${match[1]}장`;
-
-  // "chapter1", "ch1" 패턴
+  if (match) return `ch${match[1]}`;
   const ch = originalName.toLowerCase().match(/ch(?:apter)?[\s_-]?(\d+)/);
-  if (ch) return chapterNames[ch[1]] ?? `Chapter ${ch[1]}`;
+  if (ch) return `ch${ch[1]}`;
+  return originalName.replace(/\.[^.]+$/, '');
+}
 
-  return originalName.replace(/\.[^.]+$/, ''); // 확장자 제거
+/** 챕터 키 → 표시 이름 */
+function chapterKeyToLabel(key: string): string {
+  const chapterNames: Record<string, string> = {
+    ch1: '제1장 이자론',
+    ch2: '제2장 생명표',
+    ch3: '제3장 생명보험',
+    ch4: '제4장 생명연금',
+    ch5: '제5장 순보험료',
+    ch6: '제6장 책임준비금',
+    ch7: '제7장 다중탈퇴',
+    ch8: '제8장 연금계리',
+  };
+  return chapterNames[key] ?? key;
 }
 
 interface IndexedJob {
@@ -44,35 +45,66 @@ interface IndexedJob {
   created_at: string;
 }
 
+/** 챕터 단위로 묶은 그룹 */
+interface ChapterGroup {
+  key: string;
+  label: string;
+  jobIds: string[];
+  latestCreatedAt: string;
+}
+
+function groupByChapter(jobs: IndexedJob[]): ChapterGroup[] {
+  const map = new Map<string, ChapterGroup>();
+  for (const job of jobs) {
+    const key = resolveChapterKey(job.original_name);
+    if (!map.has(key)) {
+      map.set(key, { key, label: chapterKeyToLabel(key), jobIds: [], latestCreatedAt: job.created_at });
+    }
+    const g = map.get(key)!;
+    g.jobIds.push(job.id);
+    if (job.created_at > g.latestCreatedAt) g.latestCreatedAt = job.created_at;
+  }
+  // 챕터 번호 순 정렬
+  return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+}
+
 interface Props { initialJobId?: string; }
 
 export default function StudyHub({ initialJobId }: Props) {
   const [active, setActive] = useState<Tab>('chat');
-  const [jobId, setJobId] = useState<string>(initialJobId ?? '');
-  const [jobs, setJobs] = useState<IndexedJob[]>([]);
+  const [selectedChapterKey, setSelectedChapterKey] = useState<string>('');
+  const [chapters, setChapters] = useState<ChapterGroup[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
 
   useEffect(() => {
     fetch('/api/history')
       .then((r) => r.json())
       .then((d) => {
-        const indexed = (d.jobs ?? []).filter(
+        const indexed: IndexedJob[] = (d.jobs ?? []).filter(
           (j: IndexedJob & { rag_indexed: boolean }) => j.rag_indexed
         );
-        setJobs(indexed);
-        if (!jobId && indexed.length > 0) setJobId(indexed[0].id);
+        const groups = groupByChapter(indexed);
+        setChapters(groups);
+
+        // initialJobId가 있으면 해당 챕터 선택, 없으면 첫 번째 챕터
+        if (initialJobId) {
+          const target = groups.find((g) => g.jobIds.includes(initialJobId));
+          setSelectedChapterKey(target?.key ?? groups[0]?.key ?? '');
+        } else {
+          setSelectedChapterKey(groups[0]?.key ?? '');
+        }
       })
-      .catch(() => setJobs([]))
+      .catch(() => setChapters([]))
       .finally(() => setLoadingJobs(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const selectedJob = jobs.find((j) => j.id === jobId);
-  const chapterLabel = selectedJob ? resolveChapterLabel(selectedJob.original_name) : '';
+  const selectedChapter = chapters.find((g) => g.key === selectedChapterKey);
+  const activeJobIds = selectedChapter?.jobIds ?? [];
 
   return (
     <div>
-      {/* ── Chapter / Document Selector ─────────────────────── */}
+      {/* ── Chapter Selector ──────────────────────────────── */}
       <div
         className="mb-6 rounded-2xl border p-5"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
@@ -86,19 +118,30 @@ export default function StudyHub({ initialJobId }: Props) {
               최신보험수리학
             </p>
           </div>
-          {chapterLabel && (
-            <span
-              className="text-sm font-medium px-3 py-1 rounded-full"
-              style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}
-            >
-              {chapterLabel}
-            </span>
+          {selectedChapter && (
+            <div className="flex items-center gap-2">
+              <span
+                className="text-sm font-medium px-3 py-1 rounded-full"
+                style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}
+              >
+                {selectedChapter.label}
+              </span>
+              <span
+                className="text-xs px-2 py-1 rounded-full"
+                style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}
+              >
+                {selectedChapter.jobIds.length}개 파일 통합
+              </span>
+            </div>
           )}
         </div>
 
         {loadingJobs ? (
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>문서 목록 불러오는 중...</div>
-        ) : jobs.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+            <div className="w-3.5 h-3.5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+            목록 불러오는 중...
+          </div>
+        ) : chapters.length === 0 ? (
           <div
             className="text-sm px-4 py-3 rounded-xl"
             style={{ background: 'var(--warning-light)', color: 'var(--warning)', border: '1px solid rgba(217,119,6,0.2)' }}
@@ -107,22 +150,21 @@ export default function StudyHub({ initialJobId }: Props) {
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {jobs.map((j) => {
-              const label = resolveChapterLabel(j.original_name);
-              const isActive = j.id === jobId;
+            {chapters.map((chapter) => {
+              const isActive = chapter.key === selectedChapterKey;
               return (
                 <button
-                  key={j.id}
-                  onClick={() => setJobId(j.id)}
+                  key={chapter.key}
+                  onClick={() => setSelectedChapterKey(chapter.key)}
                   className="px-4 py-2 rounded-xl text-sm font-medium transition-all border"
                   style={{
-                    background: isActive ? 'var(--primary)' : 'var(--bg, #fff)',
+                    background: isActive ? 'var(--primary)' : '#fff',
                     color: isActive ? '#fff' : 'var(--text-secondary)',
                     borderColor: isActive ? 'var(--primary)' : 'var(--border)',
                     boxShadow: isActive ? '0 2px 6px rgba(94,106,210,0.25)' : 'none',
                   }}
                 >
-                  {label}
+                  {chapter.label}
                 </button>
               );
             })}
@@ -130,10 +172,8 @@ export default function StudyHub({ initialJobId }: Props) {
         )}
       </div>
 
-      {/* ── Tab Bar ─────────────────────────────────────────── */}
-      <div
-        className="grid grid-cols-4 gap-2 mb-8"
-      >
+      {/* ── Tab Bar ───────────────────────────────────────── */}
+      <div className="grid grid-cols-4 gap-2 mb-8">
         {TABS.map((tab) => {
           const isActive = active === tab.id;
           return (
@@ -156,12 +196,12 @@ export default function StudyHub({ initialJobId }: Props) {
         })}
       </div>
 
-      {/* ── Tab Content ─────────────────────────────────────── */}
+      {/* ── Tab Content ───────────────────────────────────── */}
       <div>
-        {active === 'chat'    && <ChatInterface    jobId={jobId || undefined} />}
-        {active === 'search'  && <SemanticSearch   jobId={jobId || undefined} />}
-        {active === 'formula' && <FormulaExplorer  jobId={jobId || undefined} />}
-        {active === 'quiz'    && <QuizGenerator    jobId={jobId || undefined} />}
+        {active === 'chat'    && <ChatInterface   jobIds={activeJobIds.length ? activeJobIds : undefined} />}
+        {active === 'search'  && <SemanticSearch  jobIds={activeJobIds.length ? activeJobIds : undefined} />}
+        {active === 'formula' && <FormulaExplorer jobIds={activeJobIds.length ? activeJobIds : undefined} />}
+        {active === 'quiz'    && <QuizGenerator   jobIds={activeJobIds.length ? activeJobIds : undefined} />}
       </div>
     </div>
   );
