@@ -1,65 +1,137 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import PdfUploader from '@/components/upload/PdfUploader';
+import PageRangeSelector from '@/components/upload/PageRangeSelector';
+
+function parsePageRange(input: string): number[] {
+  const pages = new Set<number>();
+  for (const part of input.split(',')) {
+    const t = part.trim();
+    if (t.includes('-')) {
+      const [s, e] = t.split('-').map(Number);
+      for (let i = s; i <= e; i++) if (i > 0) pages.add(i);
+    } else {
+      const n = parseInt(t, 10);
+      if (n > 0) pages.add(n);
+    }
+  }
+  return Array.from(pages).sort((a, b) => a - b);
+}
+
+const FEATURES = [
+  { icon: '⚡', title: '수식 정확도 최우선', desc: 'Claude Sonnet 4.6 Vision으로 LaTeX 수식 파싱' },
+  { icon: '🔄', title: '다단계 검증', desc: 'KaTeX 검증 → 재파싱 → 이미지 폴백' },
+  { icon: '📝', title: '편집 가능한 OMML', desc: 'Word 네이티브 수식으로 직접 편집' },
+  { icon: '🎓', title: 'AI 학습 튜터', desc: 'RAG 기반 Q&A · 문제풀기 · 수식 탐색' },
+];
+
+export default function HomePage() {
+  const router = useRouter();
+  const [file, setFile] = useState<File | null>(null);
+  const [targetPages, setTargetPages] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleStart() {
+    if (!file) return;
+    setUploading(true); setError('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const upRes = await fetch('/api/upload', { method: 'POST', body: form });
+      const upData = await upRes.json();
+      if (!upRes.ok) throw new Error(upData.error);
+
+      const pages = targetPages.trim() ? parsePageRange(targetPages) : [];
+      await fetch('/api/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: upData.jobId, targetPages: pages.length ? pages : undefined }),
+      });
+      router.push(`/convert/${upData.jobId}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '오류가 발생했습니다');
+      setUploading(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="max-w-2xl mx-auto px-6 py-14">
+      {/* Hero */}
+      <div className="mb-10 text-center">
+        <div
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-4"
+          style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--primary)' }} />
+          최신보험수리학 전용 변환기
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <h1 className="text-3xl font-bold tracking-tight mb-3" style={{ color: 'var(--text-primary)' }}>
+          보험수리학 교재 PDF
+          <br />
+          <span style={{ color: 'var(--primary)' }}>Word 문서로 변환</span>
+        </h1>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          수식·생명표·연금현가를 정확하게 변환하고 AI 튜터로 학습하세요
+        </p>
+      </div>
+
+      {/* Upload card */}
+      <div
+        className="rounded-2xl p-6 mb-4 border"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-md)' }}
+      >
+        <PdfUploader onFileSelect={setFile} selectedFile={file} />
+      </div>
+
+      {file && (
+        <div
+          className="rounded-2xl p-6 mb-4 border"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          <PageRangeSelector value={targetPages} onChange={setTargetPages} />
         </div>
-      </main>
+      )}
+
+      {error && (
+        <div
+          className="mb-4 p-3 rounded-xl text-sm"
+          style={{ background: 'var(--error-light)', color: 'var(--error)', border: '1px solid rgba(220,38,38,0.2)' }}
+        >
+          {error}
+        </div>
+      )}
+
+      <button
+        onClick={handleStart}
+        disabled={!file || uploading}
+        className="w-full py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-40"
+        style={{
+          background: 'var(--primary)',
+          color: '#fff',
+          boxShadow: file && !uploading ? '0 2px 8px rgba(94,106,210,0.35)' : 'none',
+          cursor: file && !uploading ? 'pointer' : 'not-allowed',
+        }}
+      >
+        {uploading ? '업로드 중...' : '변환 시작 →'}
+      </button>
+
+      {/* Feature grid */}
+      <div className="mt-10 grid grid-cols-2 gap-3">
+        {FEATURES.map(({ icon, title, desc }) => (
+          <div
+            key={title}
+            className="p-4 rounded-xl border"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div className="text-lg mb-1">{icon}</div>
+            <div className="text-sm font-medium mb-0.5" style={{ color: 'var(--text-primary)' }}>{title}</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{desc}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

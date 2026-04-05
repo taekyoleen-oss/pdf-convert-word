@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: actuarial-study
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: HOSTNAME
+        value: "0.0.0.0"
+      - key: MML2OMML_XSL_PATH
+        value: /app/lib/converters/MML2OMML.XSL
+      - key: PDF_IMAGE_DPI
+        value: "300"
+      - key: MAX_PDF_PAGES
+        value: "50"
+      - key: MAX_REPARSE_ATTEMPTS
+        value: "3"
+      # Supabase — Render 대시보드에서 직접 입력
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # AI API Keys — Render 대시보드에서 직접 입력
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
