@@ -7,7 +7,7 @@ function getPdfPageCount(buffer: Buffer): number {
   const result = spawnSync(
     'python',
     ['-c', 'import sys, fitz; doc = fitz.open(stream=sys.stdin.buffer.read(), filetype="pdf"); print(doc.page_count)'],
-    { input: buffer, encoding: 'utf8', timeout: 15000 }
+    { input: buffer, encoding: 'utf8', timeout: 60000 }
   );
   const count = parseInt(result.stdout.trim(), 10);
   return isNaN(count) ? 0 : count;
@@ -18,16 +18,22 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     if (!file) return Response.json({ error: '파일이 없습니다' }, { status: 400 });
+    const category = (formData.get('category') as string | null) ?? null;
 
     const v = validatePdfFile(file);
     if (!v.valid) return Response.json({ error: v.error }, { status: 400 });
 
     const supabase = createServerClient();
+    const insertData: Record<string, unknown> = { original_name: file.name, storage_path: '', total_pages: 0, target_pages: [], status: 'pending', rag_indexed: false };
+    if (category) insertData.category = category;
     const { data: job, error: jobErr } = await supabase
       .from('conv_jobs')
-      .insert({ original_name: file.name, storage_path: '', total_pages: 0, target_pages: [], status: 'pending', rag_indexed: false })
+      .insert(insertData)
       .select().single();
-    if (jobErr || !job) return Response.json({ error: '작업 생성 실패' }, { status: 500 });
+    if (jobErr || !job) {
+      console.error('작업 생성 오류:', jobErr);
+      return Response.json({ error: '작업 생성 실패', detail: jobErr?.message }, { status: 500 });
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const totalPages = getPdfPageCount(buffer);

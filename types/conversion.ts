@@ -62,6 +62,7 @@ export interface ConvJob {
   status: JobStatus;
   error_msg: string | null;
   rag_indexed: boolean;
+  category: string | null;
   created_at: string;
   updated_at: string;
 }

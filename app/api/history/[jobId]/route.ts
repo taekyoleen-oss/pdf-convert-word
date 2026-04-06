@@ -1,6 +1,14 @@
 import { NextRequest } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
+  const { jobId } = await params;
+  const { category } = await req.json();
+  const supabase = createServerClient();
+  await supabase.from('conv_jobs').update({ category: category ?? null, updated_at: new Date().toISOString() }).eq('id', jobId);
+  return Response.json({ success: true });
+}
+
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = await params;
   const supabase = createServerClient();

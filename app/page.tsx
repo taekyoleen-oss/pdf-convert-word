@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PdfUploader from '@/components/upload/PdfUploader';
 import PageRangeSelector from '@/components/upload/PageRangeSelector';
+import CategorySelector from '@/components/upload/CategorySelector';
 
 function parsePageRange(input: string): number[] {
   const pages = new Set<number>();
@@ -31,6 +32,7 @@ export default function HomePage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [targetPages, setTargetPages] = useState('');
+  const [category, setCategory] = useState('');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,6 +42,7 @@ export default function HomePage() {
     try {
       const form = new FormData();
       form.append('file', file);
+      if (category.trim()) form.append('category', category.trim());
       const upRes = await fetch('/api/upload', { method: 'POST', body: form });
       const upData = await upRes.json();
       if (!upRes.ok) throw new Error(upData.error);
@@ -88,9 +91,10 @@ export default function HomePage() {
 
       {file && (
         <div
-          className="rounded-2xl p-6 mb-4 border"
+          className="rounded-2xl p-6 mb-4 border space-y-5"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
+          <CategorySelector value={category} onChange={setCategory} />
           <PageRangeSelector value={targetPages} onChange={setTargetPages} />
         </div>
       )}

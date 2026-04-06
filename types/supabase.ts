@@ -14,6 +14,7 @@ export type Database = {
           status: 'pending' | 'processing' | 'done' | 'error';
           error_msg: string | null;
           rag_indexed: boolean;
+          category: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -27,6 +28,7 @@ export type Database = {
           status?: 'pending' | 'processing' | 'done' | 'error';
           error_msg?: string | null;
           rag_indexed?: boolean;
+          category?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -40,6 +42,7 @@ export type Database = {
           status?: 'pending' | 'processing' | 'done' | 'error';
           error_msg?: string | null;
           rag_indexed?: boolean;
+          category?: string | null;
           created_at?: string;
           updated_at?: string;
         };
