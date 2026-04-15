@@ -1,11 +1,8 @@
-import StudyHub from '@/components/study/StudyHub';
-import { BookOpen } from 'lucide-react';
+import ExamHub from '@/components/exam/ExamHub';
+import { ClipboardList } from 'lucide-react';
 
-export default async function StudyPage({ searchParams }: { searchParams: Promise<{ jobId?: string }> }) {
-  const { jobId } = await searchParams;
-
+export default function ExamPage() {
   return (
-    /* topbar 높이를 제외한 전체 높이 사용 */
     <div
       className="flex flex-col overflow-hidden"
       style={{ height: 'calc(100vh - var(--topbar-height))' }}
@@ -17,23 +14,23 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
       >
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: 'var(--primary-light)' }}
+          style={{ background: 'var(--accent-light)' }}
         >
-          <BookOpen size={20} style={{ color: 'var(--primary)' }} />
+          <ClipboardList size={20} style={{ color: 'var(--accent)' }} />
         </div>
         <div>
           <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-            AI 학습 허브
+            보험계리사 기출문제
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Q&A 튜터 · 수식 탐색 · 퀴즈 · 시맨틱 검색
+            연도별 시험문제 풀기 · 정답 확인 · 단원별 분석
           </p>
         </div>
       </div>
 
-      {/* Hub fills remaining height */}
-      <div className="flex-1 overflow-hidden">
-        <StudyHub initialJobId={jobId} />
+      {/* Exam Hub */}
+      <div className="flex-1 overflow-y-auto">
+        <ExamHub />
       </div>
     </div>
   );

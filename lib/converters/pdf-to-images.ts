@@ -12,7 +12,7 @@ export function getPdfPageCount(buffer: Buffer): number {
   const result = spawnSync(
     'python',
     ['-c', 'import sys, fitz; doc = fitz.open(stream=sys.stdin.buffer.read(), filetype="pdf"); print(doc.page_count)'],
-    { input: buffer, encoding: 'utf8', timeout: 15000 }
+    { input: buffer, encoding: 'utf8', timeout: 60000 }
   );
   const count = parseInt(result.stdout.trim(), 10);
   return isNaN(count) ? 1 : count;
@@ -58,7 +58,7 @@ export async function convertPdfToImages(
     const result = spawnSync(
       'python',
       [PYTHON_SCRIPT, tmpPdfPath, tmpDir, String(DPI), ...pagesToRender.map(String)],
-      { encoding: 'utf8', timeout: 120000 }
+      { encoding: 'utf8', timeout: 300000 } // 타임아웃 2분 -> 5분으로 증가
     );
 
     if (result.error) {
